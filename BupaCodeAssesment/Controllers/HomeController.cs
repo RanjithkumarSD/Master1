@@ -25,7 +25,7 @@ namespace BupaCodeAssesment.Controllers
             this.httpClient = httpClient;
         }
 
-        public ActionResult Index()
+        public async Task <ActionResult> Index()
         {
             var bookCategories = new Dictionary<string, List<string>>(); 
 
