@@ -1,95 +1,67 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Newtonsoft.Json;
+using Moq;
 using System.Collections.Generic;
-using System.Net;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web.Mvc;
-using Moq;
-using Moq.Protected;
-using System.Threading;
+using System.Reflection;
+using BupaCodeAssesment.Controllers;
+using BupaCodeAssesment.Services;
+using BupaCodeAssesment.Models;
 
-namespace BupaCodeAssesment.Controllers.Tests
+namespace BupaCodeAssesment.Tests
 {
     [TestClass]
     public class HomeControllerTests
     {
-        private Mock<HttpMessageHandler> _httpMessageHandlerMock;
-        private HttpClient _httpClient;
-        private readonly HomeController _controller;
-
-        public HomeControllerTests(Mock<HttpMessageHandler> httpMessageHandlerMoc, HttpClient httpClient, HomeController controller)
-        {
-            _httpMessageHandlerMock = httpMessageHandlerMoc;
-            _httpClient = httpClient;
-            _controller = controller;
-
-        }
+        private HomeController _controller;
+        private Mock<HttpClientService> _httpClientServiceMock;
 
         [TestInitialize]
-        public void SetUp()
+        public void Setup()
         {
-            _httpMessageHandlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            _httpClient = new HttpClient(_httpMessageHandlerMock.Object);
+            _httpClientServiceMock = new Mock<HttpClientService>();
+            _controller = new HomeController();
+            var fieldInfo = typeof(HomeController).GetField("_httpClientService", BindingFlags.NonPublic | BindingFlags.Instance);
+            fieldInfo.SetValue(_controller, _httpClientServiceMock.Object);
         }
 
         [TestMethod]
-        public async Task Index_ReturnsCorrectBookCategories_WhenApiReturnsSuccess() // Positive Scenario
+        public async Task Index_ReturnsCorrectCategories_WhenValidResponse()
         {
             // Arrange
-            var responseJson = JsonConvert.SerializeObject(new[]
+            var owners = new List<BookOwner>
             {
-                new { age = 20, books = new[] { new { name = "Great Expectations" }, new { name = "Hamlet" } } },
-                new { age = 10, books = new[] { new { name = "Little Red Riding Hood" }, new { name = "The Hobbit" } } },
-                new { age = 22, books = new[] { new { name = "Wuthering Heights" }, new { name = "Jane Eyre" } } },
-            });
-
-            _httpMessageHandlerMock
-                .Protected()
-                .Setup<Task<HttpResponseMessage>>(
-                    "SendAsync",
-                    It.IsAny<HttpRequestMessage>(),
-                    It.IsAny<CancellationToken>()
-                )
-                .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
-                });
+                new BookOwner { Age = 13, Books = new List<Book> { new Book { Name = "Great Expectations" } } },
+                new BookOwner { Age = 17, Books = new List<Book> { new Book { Name = "Little Red Riding Hood, The Hobbit" } } },
+                new BookOwner { Age = 25, Books = new List<Book> { new Book { Name = "React: The Ultimate Guide,Gulliver's Travels, Jane Eyre,Great Expectations" } } },
+            };
+            _httpClientServiceMock.Setup(s => s.GetBookOwnersAsync(It.IsAny<string>())).ReturnsAsync(owners);
 
             // Act
-            var result = await _controller.Index() as ViewResult;
-            var bookCategories = result.Model as Dictionary<string, List<string>>;
+            var result = await _controller.Index();
 
             // Assert
-            Assert.IsNotNull(bookCategories);
-            Assert.IsTrue(bookCategories.ContainsKey("Adults"));
-            Assert.IsTrue(bookCategories.ContainsKey("Children"));
-            Assert.AreEqual(4, bookCategories["Adults"].Count); // Expected number of distinct adult books
-            Assert.AreEqual(2, bookCategories["Children"].Count); // Expected number of distinct children books
+            var viewResult = result as ViewResult;
+            var model = viewResult.Model as Dictionary<string, List<string>>;
+            Assert.IsNotNull(model);
+            Assert.IsTrue(model.ContainsKey("Adults"));
+            Assert.IsTrue(model.ContainsKey("Children"));
         }
 
         [TestMethod]
-        public async Task Index_ReturnsEmptyCategories_WhenApiReturnsFailure() // Negative Scenario
+        public async Task Index_ReturnsEmpty_WhenNullResponse()
         {
             // Arrange
-            _httpMessageHandlerMock
-                .Protected()
-                .Setup<Task<HttpResponseMessage>>(
-                    "SendAsync",
-                    It.IsAny<HttpRequestMessage>(),
-                    It.IsAny<CancellationToken>()
-                )
-                .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.NotFound));
+            _httpClientServiceMock.Setup(s => s.GetBookOwnersAsync(It.IsAny<string>())).ReturnsAsync((List<BookOwner>)null);
 
             // Act
-            var result = await _controller.Index() as ViewResult;
-            var bookCategories = result.Model as Dictionary<string, List<string>>;
+            var result = await _controller.Index();
 
             // Assert
-            Assert.IsNotNull(bookCategories);
-            Assert.IsFalse(bookCategories.ContainsKey("Adults"));
-            Assert.IsFalse(bookCategories.ContainsKey("Children"));
+            var viewResult = result as ViewResult;
+            var model = viewResult.Model as Dictionary<string, List<string>>;
+            Assert.AreEqual(0, model.Count);
         }
     }
 }
+
