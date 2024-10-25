@@ -1,63 +1,47 @@
 ﻿using Newtonsoft.Json.Linq;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Web;
 using System.Web.Mvc;
-using Moq;
-using NUnit.Framework;
-using System.Net;
-using Xunit;
-using System.Threading;
 using System.Threading.Tasks;
-using Moq.Protected;
 
 namespace BupaCodeAssesment.Controllers
 {
     public class HomeController : Controller
     {
         private readonly string bupaRequestURLApiEndpoint = "https://digitalcodingtest.bupa.com.au/api/v1/bookowners";//Api for Bupa
-        private HttpClient httpClient;
-
-        public HomeController(HttpClient httpClient) //Purpose of HttpClient is Fetching JSON Data in Api
+        
+        public async Task <ActionResult> Index()
         {
-            this.httpClient = httpClient;
-        }
-
-        public ActionResult Index()
-        {
-            var bookCategories = new Dictionary<string, List<string>>(); 
-
-            using (HttpClient client = new HttpClient())
-            {
-                HttpResponseMessage apiResponse = client.GetAsync(bupaRequestURLApiEndpoint).Result;//Get the Api Data
-                if (apiResponse.IsSuccessStatusCode)
+            var bookCategories = new Dictionary<string, List<string>>();
+                using (HttpClient client = new HttpClient())
                 {
-                    var apiResponseData = apiResponse.Content.ReadAsStringAsync().Result;//Read the Api Data
-                    JArray responseDataJsonArray = JArray.Parse(apiResponseData);
-
-                    foreach (var person in responseDataJsonArray)
+                    HttpResponseMessage apiResponse = await client.GetAsync(bupaRequestURLApiEndpoint);//Requesting to the Api 
+                    if (apiResponse.IsSuccessStatusCode)
                     {
-                        string category = (int)person["age"] >= 18 ? "Adults" : "Children"; //Check the Conditions for Adults and Children
-                        if (!bookCategories.ContainsKey(category))
+                        var apiResponseData = await apiResponse.Content.ReadAsStringAsync();//Getting the data
+                        JArray bookOwners = JArray.Parse(apiResponseData);
+
+                        foreach (var bookOwner in bookOwners)
                         {
-                            bookCategories[category] = new List<string>();
+                            string category = (int)bookOwner["age"] >= 18 ? "Adults" : "Children"; // Check the Conditions for Adults and Children
+                            if (!bookCategories.ContainsKey(category))
+                            {
+                                bookCategories[category] = new List<string>();
+                            }
+
+                            foreach (var book in bookOwner["books"])
+                            {
+                                bookCategories[category].Add((string)book["name"]);// Add the name
+                            }
                         }
 
-                        foreach (var book in person["books"])
+                        foreach (var category in bookCategories.Keys.ToList())
                         {
-                            bookCategories[category].Add((string)book["name"]);// Add the name
+                            bookCategories[category] = bookCategories[category].Distinct().OrderBy(book => book).ToList();//Sorting the book name 
                         }
-                    }
-
-                    foreach (var category in bookCategories.Keys.ToList())
-                    {
-                        bookCategories[category] = bookCategories[category].Distinct().OrderBy(b => b).ToList();
                     }
                 }
-            }
-
             return View(bookCategories); // Expected result showing here --bookCategories
 
             //Expected result:

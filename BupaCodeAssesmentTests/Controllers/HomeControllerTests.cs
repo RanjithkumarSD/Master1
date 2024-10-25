@@ -17,14 +17,21 @@ namespace BupaCodeAssesment.Controllers.Tests
     {
         private Mock<HttpMessageHandler> _httpMessageHandlerMock;
         private HttpClient _httpClient;
-        private HomeController _controller;
+        private readonly HomeController _controller;
+
+        public HomeControllerTests(Mock<HttpMessageHandler> httpMessageHandlerMoc, HttpClient httpClient, HomeController controller)
+        {
+            _httpMessageHandlerMock = httpMessageHandlerMoc;
+            _httpClient = httpClient;
+            _controller = controller;
+
+        }
 
         [TestInitialize]
         public void SetUp()
         {
             _httpMessageHandlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
             _httpClient = new HttpClient(_httpMessageHandlerMock.Object);
-            _controller = new HomeController(_httpClient);
         }
 
         [TestMethod]
