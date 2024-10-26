@@ -38,7 +38,7 @@ namespace BupaCodeAssesment.Tests
             _httpClientServiceMock.Setup(s => s.GetBookOwnersAsync(It.IsAny<string>())).ReturnsAsync(owners);
 
             // Act
-            var result = await _controller.Index();
+            var result = await _controller.IndexAsync();
 
             // Assert
             var viewResult = result as ViewResult;
@@ -55,7 +55,7 @@ namespace BupaCodeAssesment.Tests
             _httpClientServiceMock.Setup(s => s.GetBookOwnersAsync(It.IsAny<string>())).ReturnsAsync((List<BookOwner>)null);
 
             // Act
-            var result = await _controller.Index();
+            var result = await _controller.IndexAsync();
 
             // Assert
             var viewResult = result as ViewResult;
